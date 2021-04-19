@@ -2,6 +2,9 @@
 # Script to extract relevant features from the Mashables corpus.
 # Returns features in descending order of Fischer Criterion.
 
+# TODO: steal the code from https://github.com/susobhang70/OnlineNewsPopularity
+
+
 import operator
 
 def main():

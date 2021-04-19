@@ -11,7 +11,6 @@ def main():
     ###########################################################################
     ### Database 
     # Initialization
-    __import__('ipdb').set_trace()
     tr_feature, tr_feature_label = readData('data/NEWS_Training_data.csv', 1)
     tr_label = readData('data/NEWS_Training_label.csv', 2)
     tr_data = np.concatenate((tr_feature, tr_label), axis=1)
@@ -43,7 +42,6 @@ def main():
                  xlabel='Label (number of sharings)',
                  ylabel='Frequency')
     plt.savefig(os.path.join('log', 'fil_freq_his.png'))
-
     
     # Find Large Variacne Features
     mean_train, std_train = standardize(fil_tr_feature)
@@ -64,7 +62,8 @@ def main():
 
     tr_feature = preprocess(fil_tr_feature, fil_tr_label, largeVar_set, tr_feature_label)
 
-    # Fisher selection
+    # TODO: Fisher selection
+    # placeholder here
 
     # Correlation matrix and Plot
     corr_mat = np.corrcoef(tr_feature.T)
