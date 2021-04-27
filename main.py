@@ -1,78 +1,83 @@
 ### main entry
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
-from news_pop.datas import readData, splitData, preprocess, standardize, onehot_feature
-from news_pop.evaluation import heatmap
+from news_pop.datas import Dataset
+from news_pop.evaluation import (m_r_squared, mean_absolute_error,
+                                 pMAE, pMSE, r_squared)
+from news_pop.evaluation import plt_corr_matrix, plt_distribution
+from news_pop.models import RBFModule
+
+
+# TODO: hparams
+model_type = 'RBF'
 
 def main():
     ###########################################################################
     ### Database 
     # Initialization
-    tr_feature, tr_feature_label = readData('data/NEWS_Training_data.csv', 1)
-    tr_label = readData('data/NEWS_Training_label.csv', 2)
-    tr_data = np.concatenate((tr_feature, tr_label), axis=1)
+    # TODO 
+    # train and test initialization should be different, I will do that later
+    data_tr = Dataset(feat_dir='data/NEWS_Training_data.csv',
+                      label_dir='data/NEWS_Training_label.csv')
+
+    data_te = Dataset(feat_dir='data/NEWS_Test_data.csv',
+                      label_dir='data/NEWS_Test_label.csv')
 
     # Draw frequency histogram
-    fig, ax = plt.subplots()
-    ax.hist(tr_label, bins=300)
-    plt.gca().set(title='Frequency Histogram', 
-                 xlabel='Label (number of sharings)', 
-                 ylabel='Frequency')
-    plt.savefig(os.path.join('log', 'freq_his.png'))
+    plt_distribution(data=data_tr.lab,
+                     bins=300,
+                     title='Frequency Histogram',
+                     xlabel='Label (number of sharings)', 
+                     ylabel='Frequency',
+                     save_dir=os.path.join('log', 'freq_his.png'))
 
-    # Filter outlier
-    tr_label_std = np.std(tr_label)
-    tr_label_mean = np.mean(tr_label)
-    filter_train_data = []
-
-    for item in tr_data:
-        if item[-1] < tr_label_mean + 2*tr_label_std:
-            filter_train_data.append(item) 
-            
-    filter_train_data = np.vstack(filter_train_data)
-    fil_tr_feature, fil_tr_label = splitData(filter_train_data)
 
     # Draw frequency histogram for filtered data
-    fig, ax = plt.subplots()
-    ax.hist(fil_tr_label, bins=100)
-    plt.gca().set(title='Filtered Frequency Histogram', 
-                 xlabel='Label (number of sharings)',
-                 ylabel='Frequency')
-    plt.savefig(os.path.join('log', 'fil_freq_his.png'))
-    
-    # Find Large Variacne Features
-    mean_train, std_train = standardize(fil_tr_feature)
-    idx = 0;  idx_set = []
-    for i in std_train:
-        if i > 1000:
-            idx_set.append(idx)
-        idx += 1
-    print("The features that have large variance is: ")
-    largeVar_set = set()
-    for i in idx_set:
-        largeVar_set.add((tr_feature_label[i])[0])
-    print(largeVar_set)
-    print()
-    binary_set = onehot_feature()
-    print("The features that is one-hot is: ")
-    print(binary_set)
-
-    tr_feature = preprocess(fil_tr_feature, fil_tr_label, largeVar_set, tr_feature_label)
-
-    # TODO: Fisher selection
-    # placeholder here
+    plt_distribution(data=data_tr.fil_lab, 
+                     bins=100,
+                     title='Frequency Histogram',
+                     xlabel='Label (number of sharings)', 
+                     ylabel='Frequency',
+                     save_dir=os.path.join('log', 'fil_freq_his.png'))
 
     # Correlation matrix and Plot
-    corr_mat = np.corrcoef(tr_feature.T)
-    fig, ax = plt.subplots(figsize=(15, 15))
-    im, cbar = heatmap(corr_mat, tr_feature_label, tr_feature_label, ax=ax,
-                       cmap="YlGn")
-    fig.tight_layout()
-    plt.savefig(os.path.join('log', 'corr_mat.png'))
-    
+    corr_mat = np.corrcoef(data_tr.fil_norm_feat.T)
+    plt_corr_matrix(corr_mat, 
+                    data_tr.feat_lab, 
+                    os.path.join('log', 'corr_mat.png'))
+
+
+    ###########################################################################
+    ### Model
+    # TODO 
+    # add other types model with "elif"
+    # model must have "fit" & "predict" methods
+    # TODO
+    # think about how to add grid search for model hyperparameters
+    if model_type == 'RBF':
+        model = RBFModule(hidden_shape=50)
+    else:
+        raise NotImplementedError
+
+
+    ###########################################################################
+    ### Train and Inference
+    model.fit(data_tr.fil_norm_feat, data_tr.fil_lab)
+    pred_tr = model.predict(data_tr.fil_norm_feat)
+    pred_te = model.predict(data_te.fil_norm_feat)
+
+
+    ###########################################################################
+    ### Evaluation
+    mae = mean_absolute_error(pred_tr, data_tr.fil_lab)
+    r2 = r_squared(pred_tr, data_tr.fil_lab)
+    pmse = pMSE(pred_tr, data_tr.fil_lab, r=10)
+    pmae = pMAE(pred_tr, data_tr.fil_lab, r=10)
+    mr2 = m_r_squared(pred_tr, data_tr.fil_lab, r=10)
 
 
 if __name__ == '__main__':
