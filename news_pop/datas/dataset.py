@@ -18,7 +18,7 @@ class Dataset(object):
         self.fil_data, self.fil_feat, self.fil_lab = filtered_data
 
         self.fil_norm_feat = self.normlize_large_variance_feat(self.fil_feat, self.fil_lab, self.feat_lab)
-
+        self.norm_feat = self.normlize_large_variance_feat(self.feat, self.lab, self.feat_lab)
         # TODO fisher feature selection: i don't know how to implement that
 
 
