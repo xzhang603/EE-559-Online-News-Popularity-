@@ -24,8 +24,10 @@ class RBFModule(object):
         return G
     
     def _select_centers(self, X):
-        random_args = np.random.choice(len(X), self.hidden_shape)
-        centers = X[random_args]
+        #random_args = np.random.choice(len(X), self.hidden_shape)
+        #centers = X[random_args]
+        kmeans = KMeans(n_clusters=self.hidden_shape, init='random', random_state=0).fit(X)
+        centers = kmeans.cluster_centers_
         return centers
     
     def fit(self, X, Y):
