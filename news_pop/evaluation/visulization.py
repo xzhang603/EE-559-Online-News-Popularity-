@@ -22,7 +22,7 @@ def plt_corr_matrix(corr_mat, feat_lab, save_dir):
 
 
 def plt_eval_metrics(x_data, y_data, prefix, save_dir):
-    fig, ax = plt.subplots(1, 5, sharex=True)
+    fig, ax = plt.subplots(1, 5, sharey=True)
     x = np.array(x_data)
     for i, item in enumerate(y_data.items()):
         k, v = item

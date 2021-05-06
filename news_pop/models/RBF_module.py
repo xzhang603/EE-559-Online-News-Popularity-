@@ -1,19 +1,20 @@
 import sklearn
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import PolynomialFeatures
 
 class RBFModule(object):
-    def __init__(self, hidden_shape, centers=None, sigma=1.0):
+    def __init__(self, hidden_shape, centers=None, gamma=1.0):
         self.hidden_shape = hidden_shape
-        self.sigma = sigma
+        self.gamma = gamma
         self.centers_all = centers
         self.centers_sele = None
         self.lr = LinearRegression()
         self.poly = PolynomialFeatures(1)
     
     def _kernel_function(self, center, data_point):
-        return np.exp(-self.sigma*np.linalg.norm(center-data_point)**2)
+        return np.exp(-self.gamma*np.linalg.norm(center-data_point)**2)
     
     def _calculate_interpolation_matrix(self, X):
         G = np.zeros((len(X), self.hidden_shape))

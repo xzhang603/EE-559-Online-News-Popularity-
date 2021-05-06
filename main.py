@@ -14,6 +14,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LassoCV
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import KFold
+from sklearn.cluster import KMeans
 
 from news_pop.datas import Dataset, TrainDataset, TestDataset
 from news_pop.evaluation import (m_r_squared, mean_absolute_error,
@@ -27,13 +28,21 @@ standard = True
 filter_outlier = False
 select_feat = False
 num_fold = 5
-prefix = 'ridge_std'
+prefix = 'rbf_std'
+
 # Ridge
-model_type = 'Ridge'
-model_sele_param = [math.exp(i-20) for i in range(24)]
+# model_type = 'Ridge'
+# model_sele_param = [math.exp(i-20) for i in range(24)]
+
 # SVR 
 # model_type = 'SVR'
-# model_sele_param = np.logspace(-3,3,10)
+
+# Linear Regression
+# model_type = 'LinearRegression'
+
+# RBF
+model_type = 'RBF'
+model_sele_param_hidden_size = [100, 300, 500, 1000, 3000, 5000, 10000]
 
 
 def cross_val(k, data, model):
@@ -47,7 +56,6 @@ def cross_val(k, data, model):
         lab_tr, lab_val = data.lab[idx_tr], data.lab[idx_val]
         model.fit(feat_tr, lab_tr)
         pred_te = model.predict(feat_val)
-        
         mae_set.append(mean_absolute_error(pred_te, lab_val))
         r2_set.append(r_squared(pred_te, lab_val))
         pmse_set.append(pMSE(pred_te, lab_val, r=10))
@@ -99,18 +107,19 @@ def main():
 
     ###########################################################################
     ### Model
-    # TODO 
-    # model must have "fit" & "predict" methods
-    # TODO
-    # think about how to add grid search for model hyperparameters
     if model_type == 'RBF':
-        model = RBFModule(hidden_shape=50)
+        model = []
+        model_sele_param = []
+        for i in model_sele_param_hidden_size:
+            gamma = i / 32
+            gamma_list = [gamma/1024, gamma/512, gamma/256, gamma/128]
+            for j in gamma_list:
+                model.append(RBFModule(hidden_shape=i, gamma=j))
+                model_sele_param.append(i+j) # just for plot
     elif model_type == 'LinearRegression':
         model = LinearRegression()
     elif model_type == 'SVR':
         model = SVR(kernel="linear")
-    elif model_type == 'Lasso':
-        model = LassoCV
     elif model_type == 'Ridge':
         model = Ridge
         model = [model(alpha=la) for la in model_sele_param]
