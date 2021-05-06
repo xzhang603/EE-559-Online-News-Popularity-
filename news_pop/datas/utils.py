@@ -40,7 +40,7 @@ def readData(new_file, ref):
 
 def splitData(train_data):
     feature_train = train_data[:,:-1]
-    label_train = train_data[:,-1]
+    label_train = train_data[:,-1,None] # keep dim
     return feature_train, label_train
 
 

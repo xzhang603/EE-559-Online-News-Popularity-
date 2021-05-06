@@ -10,17 +10,18 @@ class Dataset(object):
         self.feat_dir = feat_dir
         self.label_dir = label_dir
 
-        self.feat, self.feat_lab = self.read_feature(self.feat_dir)
-        self.lab = self.read_label(self.label_dir)
-        self.data = np.concatenate((self.feat, self.lab), axis=1)
+        self.raw_feat, self.feat_lab = self.read_feature(self.feat_dir)
+        self.raw_lab = self.read_label(self.label_dir)
+        self.raw_data = np.concatenate((self.raw_feat, self.raw_lab), axis=1)
 
+        """
         filtered_data = self.filter_outlier(self.data, self.lab)
         self.fil_data, self.fil_feat, self.fil_lab = filtered_data
 
         self.fil_norm_feat = self.normlize_large_variance_feat(self.fil_feat, self.fil_lab, self.feat_lab)
         self.norm_feat = self.normlize_large_variance_feat(self.feat, self.lab, self.feat_lab)
         # TODO fisher feature selection: i don't know how to implement that
-
+        """
 
     def read_feature(self, file_dir):
         # read feature data
@@ -55,24 +56,10 @@ class Dataset(object):
             label_data.append(np.array([float(i) for i in item]))
         label_data = np.vstack(label_data)
         return label_data
-
-
-    def filter_outlier(self, data, lab):
-        lab_std = np.std(lab)
-        lab_mean = np.mean(lab)
-        filter_data = []
-
-        for item in data:
-            if item[-1] < lab_mean + 2*lab_std:
-                filter_data.append(item) 
-                
-        fil_data = np.vstack(filter_data)
-        fil_feat, fil_lab = splitData(fil_data)
-        return fil_data, fil_feat, fil_lab
         
 
-    def normlize_large_variance_feat(self, fil_feat, fil_lab, feat_lab):
-        mean_train, std_train = standardize(fil_feat)
+    def normlize_large_variance_feat(self, feat, lab, feat_lab):
+        mean_train, std_train = standardize(feat)
         idx = 0;  idx_set = []
         for i in std_train:
             if i > 1000:
@@ -88,5 +75,5 @@ class Dataset(object):
         print("The features that is one-hot is: ")
         print(binary_set)
 
-        norm_feat = preprocess(fil_feat, fil_lab, largeVar_set, feat_lab)
+        norm_feat = preprocess(feat, lab, largeVar_set, feat_lab)
         return norm_feat

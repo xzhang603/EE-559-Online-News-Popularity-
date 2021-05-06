@@ -1,32 +1,77 @@
 ### main entry
 import os
-
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from news_pop.datas import Dataset
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.feature_selection import RFECV
+from sklearn.feature_selection import SelectFromModel
+from sklearn.svm import SVR
+from sklearn import svm
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import KFold
+
+from news_pop.datas import Dataset, TrainDataset, TestDataset
 from news_pop.evaluation import (m_r_squared, mean_absolute_error,
                                  pMAE, pMSE, r_squared)
-from news_pop.evaluation import plt_corr_matrix, plt_distribution
-from news_pop.models import RBFModule
+from news_pop.evaluation import plt_corr_matrix, plt_distribution, plt_eval_metrics
+from news_pop.models import RBFModule, RFECV_
 
 
 # TODO: hparams
-model_type = 'RBF'
+standard = True
+filter_outlier = False
+select_feat = False
+num_fold = 5
+prefix = 'ridge_std'
+# Ridge
+model_type = 'Ridge'
+model_sele_param = [math.exp(i-20) for i in range(24)]
+# SVR 
+# model_type = 'SVR'
+# model_sele_param = np.logspace(-3,3,10)
+
+
+def cross_val(k, data, model):
+    kf = KFold(n_splits=k)
+    kf.get_n_splits(data.feat)
+    mae_set = []; r2_set = []; pmse_set = []; pmae_set = []; mr2_set = []
+    feat = data.feat_reduced if select_feat else data.feat
+
+    for idx_tr, idx_val in kf.split(feat):
+        feat_tr, feat_val = feat[idx_tr], feat[idx_val]
+        lab_tr, lab_val = data.lab[idx_tr], data.lab[idx_val]
+        model.fit(feat_tr, lab_tr)
+        pred_te = model.predict(feat_val)
+        
+        mae_set.append(mean_absolute_error(pred_te, lab_val))
+        r2_set.append(r_squared(pred_te, lab_val))
+        pmse_set.append(pMSE(pred_te, lab_val, r=10))
+        pmae_set.append(pMAE(pred_te, lab_val, r=10))
+        mr2_set.append(m_r_squared(pred_te, lab_val, r=10))
+        
+    return np.mean(mae_set), np.mean(r2_set), np.mean(pmse_set), np.mean(pmae_set), np.mean(mr2_set)
+
+
 
 def main():
     ###########################################################################
     ### Database 
     # Initialization
-    # TODO 
-    # train and test initialization should be different, I will do that later
-    data_tr = Dataset(feat_dir='data/NEWS_Training_data.csv',
-                      label_dir='data/NEWS_Training_label.csv')
+    data_tr = TrainDataset(feat_dir='data/NEWS_Training_data.csv',
+                           label_dir='data/NEWS_Training_label.csv',
+                           standard=standard,
+                           filter_outlier=filter_outlier,)
 
-    data_te = Dataset(feat_dir='data/NEWS_Test_data.csv',
-                      label_dir='data/NEWS_Test_label.csv')
+    data_te = TestDataset(feat_dir='data/NEWS_Test_data.csv',
+                          label_dir='data/NEWS_Test_label.csv',
+                          standard=standard,)
 
+    """
     # Draw frequency histogram
     plt_distribution(data=data_tr.lab,
                      bins=300,
@@ -49,35 +94,69 @@ def main():
     plt_corr_matrix(corr_mat, 
                     data_tr.feat_lab, 
                     os.path.join('log', 'corr_mat.png'))
+    """
 
 
     ###########################################################################
     ### Model
     # TODO 
-    # add other types model with "elif"
     # model must have "fit" & "predict" methods
     # TODO
     # think about how to add grid search for model hyperparameters
     if model_type == 'RBF':
         model = RBFModule(hidden_shape=50)
+    elif model_type == 'LinearRegression':
+        model = LinearRegression()
+    elif model_type == 'SVR':
+        model = SVR(kernel="linear")
+    elif model_type == 'Lasso':
+        model = LassoCV
+    elif model_type == 'Ridge':
+        model = Ridge
+        model = [model(alpha=la) for la in model_sele_param]
     else:
         raise NotImplementedError
 
 
     ###########################################################################
-    ### Train and Inference
-    model.fit(data_tr.fil_norm_feat, data_tr.fil_lab)
-    pred_tr = model.predict(data_tr.fil_norm_feat)
-    pred_te = model.predict(data_te.fil_norm_feat)
+    ### Train (model selection and cross validation)
+
+    # original feature
+    # __import__('ipdb').set_trace()
+    mae_set = []; r2_set = []; pmse_set = []; pmae_set = []; mr2_set = []
+    for param, sub_model in zip(model_sele_param, model):
+
+        if select_feat:
+            selector = SelectFromModel(estimator=sub_model)
+            selector.fit(data_tr.feat, data_tr.lab)
+            data_tr.feat_reduced = selector.transform(data_tr.feat)
+
+        mae, r2, pmse, pmae, mr2 = cross_val(num_fold, data_tr, sub_model)
+
+        mae_set.append(mae)
+        r2_set.append(r2)
+        pmse_set.append(pmse)
+        pmae_set.append(pmae)
+        mr2_set.append(mr2)
 
 
     ###########################################################################
-    ### Evaluation
-    mae = mean_absolute_error(pred_tr, data_tr.fil_lab)
-    r2 = r_squared(pred_tr, data_tr.fil_lab)
-    pmse = pMSE(pred_tr, data_tr.fil_lab, r=10)
-    pmae = pMAE(pred_tr, data_tr.fil_lab, r=10)
-    mr2 = m_r_squared(pred_tr, data_tr.fil_lab, r=10)
+    ### Save Result
+    eval_metr = {
+        'mae': mae_set,
+        'r2': r2_set,
+        'pmse': pmse_set,
+        'pmae': pmae_set,
+        'mr2': mr2_set
+    }
+
+    plt_eval_metrics(
+        x_data=model_sele_param,
+        y_data=eval_metr,
+        prefix=prefix,
+        save_dir='log'
+    )
+
 
 
 if __name__ == '__main__':
