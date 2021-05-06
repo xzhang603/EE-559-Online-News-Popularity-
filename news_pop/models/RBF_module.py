@@ -8,8 +8,7 @@ class RBFModule(object):
     def __init__(self, hidden_shape, centers=None, gamma=1.0):
         self.hidden_shape = hidden_shape
         self.gamma = gamma
-        self.centers_all = centers
-        self.centers_sele = None
+        self.centers = centers
         self.lr = LinearRegression()
         self.poly = PolynomialFeatures(1)
     
@@ -19,7 +18,7 @@ class RBFModule(object):
     def _calculate_interpolation_matrix(self, X):
         G = np.zeros((len(X), self.hidden_shape))
         for data_point_arg, data_point in enumerate(X):
-            for center_arg, center in enumerate(self.centers_sele):
+            for center_arg, center in enumerate(self.centers):
                 G[data_point_arg, center_arg] = self._kernel_function(
                         center, data_point)
         return G
@@ -32,9 +31,8 @@ class RBFModule(object):
         return centers
     
     def fit(self, X, Y):
-        if self.centers_all is None:
-            self.centers_all = X
-        self.centers_sele = self._select_centers(self.centers_all) 
+        if self.centers is None:
+            self.centers = self._select_centers(X) 
         G = self._calculate_interpolation_matrix(X)
         G = self.poly.fit_transform(G)
         self.lr.fit(G, Y)

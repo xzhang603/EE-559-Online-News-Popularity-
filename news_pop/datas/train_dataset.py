@@ -1,5 +1,6 @@
 import csv
 import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
 
 from .utils import splitData, preprocess, standardize, onehot_feature
 from .dataset import Dataset
@@ -11,18 +12,21 @@ class TrainDataset(Dataset):
 
         super(TrainDataset, self).__init__(feat_dir, label_dir)
 
+        poly = PolynomialFeatures(1)
         self.feat = self.raw_feat
         self.lab = self.raw_lab
         self.data = self.raw_data
 
         if filter_outlier:
             filtered_data = self.filter_outlier(self.data, self.lab)
-            self.data, self.feat, self.lab = filtered_data
+            _, self.feat, self.lab = filtered_data
 
         if standard:
             self.feat = self.normlize_large_variance_feat(
                 self.feat, self.lab, self.feat_lab)
-            self.data = np.concatenate((self.feat, self.lab), axis=1)
+        
+        self.feat = poly.fit_transform(self.feat)
+        self.data = np.concatenate((self.feat, self.lab), axis=1)
 
 
     def filter_outlier(self, data, lab):

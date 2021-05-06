@@ -111,10 +111,12 @@ def main():
         model = []
         model_sele_param = []
         for i in model_sele_param_hidden_size:
+            kmeans = KMeans(n_clusters=i, init='random', random_state=0).fit(data_tr.feat)
+            centers = kmeans.cluster_centers_
             gamma = i / 32
             gamma_list = [gamma/1024, gamma/512, gamma/256, gamma/128]
             for j in gamma_list:
-                model.append(RBFModule(hidden_shape=i, gamma=j))
+                model.append(RBFModule(hidden_shape=i, centers=centers,gamma=j))
                 model_sele_param.append(i+j) # just for plot
     elif model_type == 'LinearRegression':
         model = LinearRegression()
