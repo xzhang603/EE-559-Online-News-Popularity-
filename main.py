@@ -31,20 +31,21 @@ from news_pop.models import RBFModule, RFECV_
 # Perceptron
 
 # TODO: hparams
-standard = False
+standard = True
 filter_outlier = False
 select_feat = False
 num_fold = 5
-prefix = 'RBF'
-x_label = 'number of centers (M) and gamma (g)'
-save_dir = 'log/RBF'
+prefix = 'SVR_param'
+x_label = 'Kernel type (K) and Regularization parameter (C)'
+save_dir = 'log/SVR'
 
 
 # Linear Regression
 # model_type = 'LinearRegression'
 
 # SVR 
-# model_type = 'SVR'
+model_type = 'SVR'
+model_sele_param_kernel = ['rbf', 'linear']
 
 # Lasso
 # model_type = 'Lasso'
@@ -78,6 +79,20 @@ def cross_val(k, data, model):
         pmae_set.append(pMAE(pred_te, lab_val, r=10))
         mr2_set.append(m_r_squared(pred_te, lab_val, r=10))
         
+    return np.mean(mae_set), np.mean(r2_set), np.mean(pmse_set), np.mean(pmae_set), np.mean(mr2_set)
+
+
+def trainer(data_tr, data_te, model):
+    feat_tr = data_tr.feat_reduced if select_feat else data_tr.feat
+    feat_te = data_te.feat_reduced if select_feat else data_te.feat
+    model.fit(feat_tr, data_tr.lab)
+    pred_te = model.predict(feat_te)
+    mae_set.append(mean_absolute_error(data_te.lab, pred_te))
+    r2_set.append(r2_score(data_te.lab, pred_te))
+    pmse_set.append(pMSE(pred_te, data_te.lab, r=10))
+    pmae_set.append(pMAE(pred_te, data_te.lab, r=10))
+    mr2_set.append(m_r_squared(pred_te, data_te.lab, r=10))
+
     return np.mean(mae_set), np.mean(r2_set), np.mean(pmse_set), np.mean(pmae_set), np.mean(mr2_set)
 
 
@@ -136,7 +151,13 @@ def main():
     elif model_type == 'LinearRegression':
         model = LinearRegression()
     elif model_type == 'SVR':
-        model = SVR(kernel="linear")
+        model = []
+        model_sele_param = []
+        for kernel in model_sele_param_kernel:
+            C_list = [math.exp(i-2) for i in range(5)]
+            for C in C_list:
+                model.append(SVR(kernel=kernel, C=C))
+                model_sele_param.append('K:{}\n C:{:.2f}'.format(kernel, C))
     elif model_type == 'Ridge':
         model = [Ridge(alpha=la) for la in model_sele_param_alpha]
         model_sele_param = model_sele_param_alpha
@@ -160,7 +181,8 @@ def main():
                 selector.fit(data_tr.feat, data_tr.lab)
                 data_tr.feat_reduced = selector.transform(data_tr.feat)
 
-            mae, r2, pmse, pmae, mr2 = cross_val(num_fold, data_tr, sub_model)
+            # mae, r2, pmse, pmae, mr2 = cross_val(num_fold, data_tr, sub_model)
+            mae, r2, pmse, pmae, mr2 = trainer(data_tr, data_te, sub_model)
 
             mae_set.append(mae)
             r2_set.append(r2)
