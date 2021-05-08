@@ -33,17 +33,17 @@ from news_pop.models import RBFModule, RFECV_
 # TODO: hparams
 standard = False
 filter_outlier = False
-select_feat = True
+select_feat = False
 num_fold = 5
-prefix = 'svr'
+prefix = 'rbf'
 x_label = 'number of centers(M) and gamma(g)'
-save_dir = 'log/SVR'
+save_dir = 'log/RBF'
 
 # Linear Regression
 # model_type = 'LinearRegression'
 
 # SVR 
-model_type = 'SVR'
+# model_type = 'SVR'
 
 # Lasso
 # model_type = 'Lasso'
@@ -56,8 +56,8 @@ model_type = 'SVR'
 # model_type = 'Perceptron'
 
 # RBF
-# model_type = 'RBF'
-# model_sele_param_hidden_size = [30, 50, 100, 150, 200]
+model_type = 'RBF'
+model_sele_param_hidden_size = [30, 50, 100, 150, 200]
 
 
 def cross_val(k, data, model):
@@ -127,7 +127,7 @@ def main():
         for i in model_sele_param_hidden_size:
             kmeans = KMeans(n_clusters=i, init='random', random_state=0).fit(data_tr.feat)
             centers = kmeans.cluster_centers_
-            gamma = i / 32
+            gamma = (np.prod(np.ptp(data_tr.feat, axis=0)[1:]) / i) ** (1/58)
             gamma_list = [gamma/1024, gamma/512, gamma/256, gamma/128]
             for j in gamma_list:
                 model.append(RBFModule(hidden_shape=i, centers=centers,gamma=j))
@@ -206,7 +206,7 @@ def main():
     print('pMSE: {}'.format(pMSE(pred_te, data_te.lab, r=10)))
     print('pMAE: {}'.format(pMAE(pred_te, data_te.lab, r=10)))
     print('mR2: {}'.format(m_r_squared(pred_te, data_te.lab, r=10)))
-    
+
 
 
 if __name__ == '__main__':
