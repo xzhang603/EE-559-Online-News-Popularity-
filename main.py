@@ -35,9 +35,10 @@ standard = False
 filter_outlier = False
 select_feat = False
 num_fold = 5
-prefix = 'rbf'
-x_label = 'number of centers(M) and gamma(g)'
+prefix = 'RBF'
+x_label = 'number of centers (M) and gamma (g)'
 save_dir = 'log/RBF'
+
 
 # Linear Regression
 # model_type = 'LinearRegression'
@@ -50,14 +51,14 @@ save_dir = 'log/RBF'
 
 # Ridge
 # model_type = 'Ridge'
-# model_sele_param = [math.exp(i-20) for i in range(24)]
+# model_sele_param_alpha = [math.exp(i-20) for i in range(24)]
 
 # Perceptron
 # model_type = 'Perceptron'
 
 # RBF
-model_type = 'RBF'
-model_sele_param_hidden_size = [30, 50, 100, 150, 200]
+# model_type = 'RBF'
+# model_sele_param_hidden_size = [30, 50, 100, 150, 200]
 
 
 def cross_val(k, data, model):
@@ -68,7 +69,7 @@ def cross_val(k, data, model):
 
     for idx_tr, idx_val in kf.split(feat):
         feat_tr, feat_val = feat[idx_tr], feat[idx_val]
-        lab_tr, lab_val = data_te.lab[idx_tr], data_te.lab[idx_val]
+        lab_tr, lab_val = data.lab[idx_tr], data.lab[idx_val]
         model.fit(feat_tr, lab_tr)
         pred_te = model.predict(feat_val)
         mae_set.append(mean_absolute_error(lab_val, pred_te))
@@ -131,16 +132,18 @@ def main():
             gamma_list = [gamma/1024, gamma/512, gamma/256, gamma/128]
             for j in gamma_list:
                 model.append(RBFModule(hidden_shape=i, centers=centers,gamma=j))
-                model_sele_param.append('M:{}\n g:{.2f}'.format(i, j))
+                model_sele_param.append('M:{}\n g:{:.2f}'.format(i, j))
     elif model_type == 'LinearRegression':
         model = LinearRegression()
     elif model_type == 'SVR':
         model = SVR(kernel="linear")
     elif model_type == 'Ridge':
-        model = Ridge
-        model = [model(alpha=la) for la in model_sele_param]
+        model = [Ridge(alpha=la) for la in model_sele_param_alpha]
+        model_sele_param = model_sele_param_alpha
     elif model_type == 'Lasso':
         model = LassoCV()
+    elif model_type == 'Trivial':
+        model = None
     else:
         raise NotImplementedError
 
