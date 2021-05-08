@@ -18,7 +18,7 @@ def r_squared(pred, gt_lab):
     assert pred.shape == gt_lab.shape
     N = pred.shape[0]
     y_mean = np.ones_like(gt_lab) * np.mean(gt_lab)
-    r_squared = 1 - np.sum((pred-gt_lab) ** 2, axis=0) / np.sum((pred-y_mean) ** 2, axis=0)
+    r_squared = 1 - np.sum((gt_lab-pred) ** 2, axis=0) / np.sum((gt_lab-y_mean) ** 2, axis=0)
     return r_squared
 
 

@@ -6,22 +6,11 @@ from .utils import splitData, preprocess, standardize, onehot_feature
 # Author: Xin Zhang, Xuan Shi
 
 class Dataset(object):
-    def __init__(self, feat_dir, label_dir):
+    def __init__(self, feat_dir, label_dir=None):
         self.feat_dir = feat_dir
-        self.label_dir = label_dir
+        if label_dir is not None:
+            self.label_dir = label_dir
 
-        self.raw_feat, self.feat_lab = self.read_feature(self.feat_dir)
-        self.raw_lab = self.read_label(self.label_dir)
-        self.raw_data = np.concatenate((self.raw_feat, self.raw_lab), axis=1)
-
-        """
-        filtered_data = self.filter_outlier(self.data, self.lab)
-        self.fil_data, self.fil_feat, self.fil_lab = filtered_data
-
-        self.fil_norm_feat = self.normlize_large_variance_feat(self.fil_feat, self.fil_lab, self.feat_lab)
-        self.norm_feat = self.normlize_large_variance_feat(self.feat, self.lab, self.feat_lab)
-        # TODO fisher feature selection: i don't know how to implement that
-        """
 
     def read_feature(self, file_dir):
         # read feature data
@@ -40,7 +29,7 @@ class Dataset(object):
             feature_label.append(item)
         feature_label = np.vstack(feature_label)
         return feature_data, feature_label
-            
+
 
     def read_label(self, file_dir):
         # read label data

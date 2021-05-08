@@ -8,19 +8,22 @@ from .dataset import Dataset
 # Author: Xin Zhang, Xuan Shi
 
 class TestDataset(Dataset):
-    def __init__(self, feat_dir, label_dir, standard):
+    def __init__(self, 
+                 feat_dir, 
+                 label_dir, 
+                 standard=False,
+                 PCA=False):
 
         super(TestDataset, self).__init__(feat_dir, label_dir)
 
-        poly = PolynomialFeatures(1)
-        self.feat = self.raw_feat
-        self.lab = self.raw_lab
-        self.data = self.raw_data
+        self.raw_feat, self.feat_lab = self.read_feature(self.feat_dir)
 
+        self.feat = self.raw_feat
         if standard:
             self.feat = self.normlize_large_variance_feat(
                 self.feat, self.lab, self.feat_lab)
 
+        poly = PolynomialFeatures(1)
         self.feat = poly.fit_transform(self.feat)
-        self.data = np.concatenate((self.feat, self.lab), axis=1)
+        self.lab = np.squeeze(self.lab)
 

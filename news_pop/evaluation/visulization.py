@@ -21,8 +21,8 @@ def plt_corr_matrix(corr_mat, feat_lab, save_dir):
     plt.savefig(save_dir)
 
 
-def plt_eval_metrics(x_data, y_data, prefix, save_dir):
-    fig, ax = plt.subplots(1, 5, sharey=True)
+def plt_eval_metrics(x_data, y_data, prefix, x_label, save_dir):
+    fig, ax = plt.subplots(5, 1, sharex=True, figsize=(15, 10))
     x = np.array(x_data)
     for i, item in enumerate(y_data.items()):
         k, v = item
@@ -30,5 +30,8 @@ def plt_eval_metrics(x_data, y_data, prefix, save_dir):
         sub_ax.plot(x, np.array(v), label=k)
         sub_ax.legend()
         np.save(os.path.join(save_dir, prefix + k), np.array(v))
+    plt.xlabel('Parameters for model selection: {}'.format(x_label))
+    # plt.ylabel('Performance')
+    fig.tight_layout()
     plt.savefig(os.path.join(save_dir, prefix))
 
