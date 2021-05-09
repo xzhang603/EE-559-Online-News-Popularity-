@@ -7,6 +7,7 @@ import seaborn as sns
 import pickle
 
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFECV
 from sklearn.feature_selection import SelectFromModel
 from sklearn.svm import SVR
@@ -18,6 +19,7 @@ from sklearn.model_selection import KFold
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import r2_score
+
 
 from news_pop.datas import Dataset, TrainDataset, TestDataset
 from news_pop.evaluation import m_r_squared, pMAE, pMSE
@@ -32,26 +34,27 @@ from news_pop.models import RBFModule, RFECV_
 
 # TODO: hparams
 standard = True
-filter_outlier = False
+filter_outlier = True
 select_feat = False
+pca = True
 num_fold = 5
-prefix = 'SVR_param'
-x_label = 'Kernel type (K) and Regularization parameter (C)'
-save_dir = 'log/SVR'
+prefix = 'ridge_1_std_fil_pca'
+x_label = 'Alpha'
+save_dir = 'log/Ridge'
 
 
 # Linear Regression
 # model_type = 'LinearRegression'
 
 # SVR 
-model_type = 'SVR'
-model_sele_param_kernel = ['rbf', 'linear']
+# model_type = 'SVR'
+# model_sele_param_kernel = ['rbf', 'linear']
 
 # Lasso
 # model_type = 'Lasso'
 
 # Ridge
-# model_type = 'Ridge'
+model_type = 'Ridge'
 # model_sele_param_alpha = [math.exp(i-20) for i in range(24)]
 
 # Perceptron
@@ -83,8 +86,11 @@ def cross_val(k, data, model):
 
 
 def trainer(data_tr, data_te, model):
+    mae_set = []; r2_set = []; pmse_set = []; pmae_set = []; mr2_set = []
     feat_tr = data_tr.feat_reduced if select_feat else data_tr.feat
     feat_te = data_te.feat_reduced if select_feat else data_te.feat
+    feat_tr = data_tr.pca_feat if pca else data_tr.feat
+    feat_te = data_te.pca_feat if pca else data_te.feat
     model.fit(feat_tr, data_tr.lab)
     pred_te = model.predict(feat_te)
     mae_set.append(mean_absolute_error(data_te.lab, pred_te))
@@ -154,13 +160,18 @@ def main():
         model = []
         model_sele_param = []
         for kernel in model_sele_param_kernel:
-            C_list = [math.exp(i-2) for i in range(5)]
-            for C in C_list:
-                model.append(SVR(kernel=kernel, C=C))
-                model_sele_param.append('K:{}\n C:{:.2f}'.format(kernel, C))
+            if kernel == 'rbf':
+                model.append(SVR(kernel=kernel))
+                model_sele_param.append('K:{}\n'.format(kernel))
+            else:
+                C_list = [math.exp(i-2) for i in range(5)]
+                for C in C_list:
+                    model.append(SVR(kernel=kernel, C=C))
+                    model_sele_param.append('K:{}\n C:{:.2f}'.format(kernel, C))
     elif model_type == 'Ridge':
-        model = [Ridge(alpha=la) for la in model_sele_param_alpha]
-        model_sele_param = model_sele_param_alpha
+        model = Ridge(alpha=1.)
+        # model = [Ridge(alpha=la) for la in model_sele_param_alpha]
+        # model_sele_param = model_sele_param_alpha
     elif model_type == 'Lasso':
         model = LassoCV()
     elif model_type == 'Trivial':
@@ -180,9 +191,10 @@ def main():
                 selector = SelectFromModel(estimator=sub_model)
                 selector.fit(data_tr.feat, data_tr.lab)
                 data_tr.feat_reduced = selector.transform(data_tr.feat)
+                data_te.feat_reduced = selector.transform(data_te.feat)
 
-            # mae, r2, pmse, pmae, mr2 = cross_val(num_fold, data_tr, sub_model)
-            mae, r2, pmse, pmae, mr2 = trainer(data_tr, data_te, sub_model)
+            mae, r2, pmse, pmae, mr2 = cross_val(num_fold, data_tr, sub_model)
+            # mae, r2, pmse, pmae, mr2 = trainer(data_tr, data_te, sub_model)
 
             mae_set.append(mae)
             r2_set.append(r2)
@@ -211,6 +223,48 @@ def main():
         model = model[np.argmax(np.array(r2_set))]
         print('optim parameter:{}'.format(model_sele_param[np.argmax(np.array(r2_set))]))
 
+
+    ###########################################################################
+    ### PCA
+    if pca:
+        D = data_tr.feat.shape[1] - 1
+        n_comp = [int(i) for i in range(int(D / 10), int(D), 10)]
+        mae_set = []; r2_set = []; pmse_set = []; pmae_set = []; mr2_set = []
+        for item in n_comp:
+            pca_module = PCA(n_components=item)
+            pca_module.fit(data_tr.feat)
+            data_tr.pca_feat = pca_module.fit_transform(data_tr.feat)
+            data_te.pca_feat = pca_module.fit_transform(data_te.feat)
+
+            mae, r2, pmse, pmae, mr2 = trainer(data_tr, data_te, model)
+
+            mae_set.append(mae)
+            r2_set.append(r2)
+            pmse_set.append(pmse)
+            pmae_set.append(pmae)
+            mr2_set.append(mr2)
+
+        eval_metr = {
+            'mae': mae_set,
+            'r2': r2_set,
+            'pmse': pmse_set,
+            'pmae': pmae_set,
+            'mr2': mr2_set
+        }
+
+        plt_eval_metrics(
+            x_data=n_comp,
+            y_data=eval_metr,
+            x_label='Number of components of PCA',
+            prefix=prefix,
+            save_dir=save_dir,
+        )
+
+        # get the optimal model
+        n_comp = n_comp[np.argmin(np.array(mae_set))]
+        
+
+
     ###########################################################################
     ### Inference and Save Result
     if select_feat:
@@ -219,13 +273,23 @@ def main():
         data_tr.feat_reduced = selector.transform(data_tr.feat)
         data_te.feat_reduced = selector.transform(data_te.feat)
 
+    if pca:
+        pca_module = PCA(n_components=n_comp)
+        pca_module.fit(data_tr.feat)
+        data_tr.pca_feat = pca_module.fit_transform(data_tr.feat)
+        data_te.pca_feat = pca_module.fit_transform(data_te.feat)
+
     tr_feat = data_tr.feat_reduced if select_feat else data_tr.feat
     te_feat = data_te.feat_reduced if select_feat else data_te.feat
+    tr_feat = data_tr.pca_feat if pca else data_tr.feat
+    te_feat = data_te.pca_feat if pca else data_te.feat
+    
 
     model.fit(tr_feat, data_tr.lab)
     pickle.dump(model, open(os.path.join(save_dir, prefix + '.pkl'), 'wb'))
     pred_te = model.predict(te_feat)
     print('{} model measure on test set'.format(model_type))
+    print('PCA: {}'.format(n_comp))
     print('MAE: {}'.format(mean_absolute_error(data_te.lab, pred_te)))
     print('R2: {}'.format(r2_score(data_te.lab, pred_te)))
     print('pMSE: {}'.format(pMSE(pred_te, data_te.lab, r=10)))
